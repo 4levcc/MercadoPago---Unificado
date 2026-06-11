@@ -62,18 +62,6 @@ const COLORS = {
   headerText: 'FFFFFF',
 };
 
-function applyBorder(ws: ExcelJS.Worksheet, row: ExcelJS.Row, colCount: number) {
-  for (let c = 1; c <= colCount; c++) {
-    const cell = row.getCell(c);
-    cell.border = {
-      top: { style: 'thin', color: { argb: COLORS.border } },
-      left: { style: 'thin', color: { argb: COLORS.border } },
-      bottom: { style: 'thin', color: { argb: COLORS.border } },
-      right: { style: 'thin', color: { argb: COLORS.border } },
-    };
-    cell.alignment = { vertical: 'middle', horizontal: 'center', wrapText: false };
-  }
-}
 
 export function ExportButton({ startDate, endDate, statusFilter }: ExportButtonProps) {
   const [isExporting, setIsExporting] = useState(false);

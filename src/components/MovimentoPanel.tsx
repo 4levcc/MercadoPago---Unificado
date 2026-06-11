@@ -1,4 +1,4 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { useLiveQuery } from 'dexie-react-hooks';
 import { db, type Movimento } from '../db';
 import { ChevronLeft, ChevronRight, Check, ArrowUp, ArrowDown } from 'lucide-react';
