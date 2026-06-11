@@ -536,5 +536,11 @@ export async function exportToXlsx(format: 'pivotado' | 'auditoria' | 'cronologi
     );
     XLSX.utils.book_append_sheet(wb, wsUnmapped, 'Não Conciliados');
 
-    XLSX.writeFile(wb, `Conciliacao_MercadoPago_${format}.xlsx`);
+    const fileNameMap = {
+        'pivotado': 'Extrato Pivotado - MP.xlsx',
+        'auditoria': 'Extrato Auditoria - MP.xlsx',
+        'cronologico': 'Extrato Analítico - MP.xlsx'
+    };
+    const fileName = fileNameMap[format] || `Conciliacao_MercadoPago_${format}.xlsx`;
+    XLSX.writeFile(wb, fileName);
 }

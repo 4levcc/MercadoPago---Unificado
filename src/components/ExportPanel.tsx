@@ -37,7 +37,7 @@ export const ExportPanel: React.FC = () => {
           </div>
           <div>
             <h4 className="font-semibold text-gray-900 flex items-center">
-              Analítico Pivotado (Horizontal)
+              Extrato Pivotado (Horizontal)
               {exporting && <Loader2 className="w-4 h-4 ml-2 animate-spin text-primary-500" />}
             </h4>
             <p className="text-xs text-gray-500 mt-1">1 linha por venda, tarifas em colunas consolidadas.</p>
@@ -54,7 +54,7 @@ export const ExportPanel: React.FC = () => {
           </div>
           <div>
             <h4 className="font-semibold text-gray-900 flex items-center">
-              Analítico Auditoria (Vertical)
+              Extrato Auditoria (Vertical)
               {exporting && <Loader2 className="w-4 h-4 ml-2 animate-spin text-primary-500" />}
             </h4>
             <p className="text-xs text-gray-500 mt-1">Visão em blocos: Extrato original, Movimentos abaixo e Total.</p>
@@ -71,7 +71,7 @@ export const ExportPanel: React.FC = () => {
           </div>
           <div>
             <h4 className="font-semibold text-gray-900 flex items-center">
-              Analítico Cronológico (Vertical)
+              Extrato Analítico (Vertical)
               {exporting && <Loader2 className="w-4 h-4 ml-2 animate-spin text-primary-500" />}
             </h4>
             <p className="text-xs text-gray-500 mt-1">Formato contínuo: Apenas movimentos alinhados pela data para soma exata no Excel.</p>
