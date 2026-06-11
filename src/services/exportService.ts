@@ -536,11 +536,34 @@ export async function exportToXlsx(format: 'pivotado' | 'auditoria' | 'cronologi
     );
     XLSX.utils.book_append_sheet(wb, wsUnmapped, 'Não Conciliados');
 
+    const monthYears = new Set<string>();
+    data.processedList.forEach(r => {
+        const dateStr = r.release_date;
+        if (!dateStr) return;
+        let month, year;
+        if (dateStr.match(/^\d{4}-\d{2}-\d{2}/)) {
+            const parts = dateStr.split(/[-/]/);
+            year = parts[0];
+            month = parts[1];
+        } else {
+            const parts = dateStr.split(/[-/]/);
+            if (parts.length === 3 && parts[2].length === 4) {
+                month = parts[1];
+                year = parts[2];
+            }
+        }
+        if (month && year) {
+            monthYears.add(`${month}${year}`);
+        }
+    });
+    
+    const monthYearSuffix = monthYears.size > 0 ? ` - ${Array.from(monthYears).sort().join(' ')}` : '';
+
     const fileNameMap = {
-        'pivotado': 'Extrato Pivotado - MP.xlsx',
-        'auditoria': 'Extrato Auditoria - MP.xlsx',
-        'cronologico': 'Extrato Analítico - MP.xlsx'
+        'pivotado': `Extrato Pivotado - MP${monthYearSuffix}.xlsx`,
+        'auditoria': `Extrato Auditoria - MP${monthYearSuffix}.xlsx`,
+        'cronologico': `Extrato Analítico - MP${monthYearSuffix}.xlsx`
     };
-    const fileName = fileNameMap[format] || `Conciliacao_MercadoPago_${format}.xlsx`;
+    const fileName = fileNameMap[format] || `Conciliacao_MercadoPago_${format}${monthYearSuffix}.xlsx`;
     XLSX.writeFile(wb, fileName);
 }
