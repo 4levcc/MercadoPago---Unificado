@@ -503,7 +503,7 @@ export async function exportToXlsx(format: 'pivotado' | 'auditoria' | 'cronologi
                 if (row.status_conciliacao === 'Conciliado Divergente' && row.diferenca !== null) {
                     mainSheetData.push([
                         row.release_date,
-                        '⚠ Ajuste de Saldo',
+                        row.diferenca > 0 ? 'Ajuste de Saldo (+)' : 'Ajuste de Saldo (-)',
                         row.reference_id,
                         row.diferenca,
                         '',
