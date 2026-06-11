@@ -3,11 +3,15 @@ import { UploadPanel } from './components/UploadPanel';
 import { DashboardStats } from './components/DashboardStats';
 import { TransactionsTable } from './components/TransactionsTable';
 import { ExportPanel } from './components/ExportPanel';
+import { TinyExportPanel } from './components/TinyExportPanel';
 import { processReconciliation } from './services/exportService';
 import { Activity, RefreshCcw, Trash2 } from 'lucide-react';
 import { db } from './db/database';
 
+type AppTab = 'conciliacao' | 'tiny';
+
 function App() {
+  const [activeTab, setActiveTab] = useState<AppTab>('conciliacao');
   const [isReconciling, setIsReconciling] = useState(false);
   const handleUploadSuccess = () => {
     // We could trigger an auto-reconciliation here if we want
@@ -57,60 +61,104 @@ function App() {
         </div>
       </header>
 
+      {/* Tab Navigation */}
+      <div className="bg-white border-b border-gray-200">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <nav className="flex space-x-1">
+            <button
+              onClick={() => setActiveTab('conciliacao')}
+              className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === 'conciliacao'
+                  ? 'border-primary-600 text-primary-700'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Conciliação MP
+            </button>
+            <button
+              onClick={() => setActiveTab('tiny')}
+              className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
+                activeTab === 'tiny'
+                  ? 'border-primary-600 text-primary-700'
+                  : 'border-transparent text-gray-500 hover:text-gray-700 hover:border-gray-300'
+              }`}
+            >
+              Exportação Tiny
+            </button>
+          </nav>
+        </div>
+      </div>
+
       {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
-        
-        {/* Section 1: Upload */}
-        <section>
-          <div className="mb-4">
-            <h2 className="text-lg font-bold text-gray-900">1. Importação de Dados</h2>
-            <p className="text-sm text-gray-500">Carregue as planilhas oficiais exportadas pelo Mercado Pago.</p>
-          </div>
-          <UploadPanel onUploadSuccess={handleUploadSuccess} />
-        </section>
 
-        {/* Section 2: Dashboard & Actions */}
-        <section>
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-lg font-bold text-gray-900">2. Análise e Conciliação</h2>
-              <p className="text-sm text-gray-500">Visão geral dos dados armazenados no banco local.</p>
+        {activeTab === 'conciliacao' && (
+          <>
+            {/* Section 1: Upload */}
+            <section>
+              <div className="mb-4">
+                <h2 className="text-lg font-bold text-gray-900">1. Importação de Dados</h2>
+                <p className="text-sm text-gray-500">Carregue as planilhas oficiais exportadas pelo Mercado Pago.</p>
+              </div>
+              <UploadPanel onUploadSuccess={handleUploadSuccess} />
+            </section>
+
+            {/* Section 2: Dashboard & Actions */}
+            <section>
+              <div className="flex items-center justify-between mb-4">
+                <div>
+                  <h2 className="text-lg font-bold text-gray-900">2. Análise e Conciliação</h2>
+                  <p className="text-sm text-gray-500">Visão geral dos dados armazenados no banco local.</p>
+                </div>
+                <div className="flex items-center space-x-3">
+                  <button 
+                    onClick={handleClearDb}
+                    className="flex items-center space-x-2 px-4 py-2 bg-white border border-red-200 text-red-600 hover:bg-red-50 rounded-lg font-medium transition-colors shadow-sm"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                    <span>Limpar Banco</span>
+                  </button>
+                  <button 
+                    onClick={handleReconcile}
+                    disabled={isReconciling}
+                    className="flex items-center space-x-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium transition-colors shadow-sm disabled:opacity-50"
+                  >
+                    <RefreshCcw className={`w-4 h-4 ${isReconciling ? 'animate-spin' : ''}`} />
+                    <span>{isReconciling ? 'Processando...' : 'Rodar Conciliação'}</span>
+                  </button>
+                </div>
+              </div>
+              
+              <DashboardStats />
+            </section>
+
+            {/* Section 3: Data Grid */}
+            <section>
+              <TransactionsTable />
+            </section>
+
+            {/* Section 4: Export */}
+            <section>
+              <div className="mb-4">
+                <h2 className="text-lg font-bold text-gray-900">3. Geração de Relatórios</h2>
+                <p className="text-sm text-gray-500">Exporte os resultados da conciliação.</p>
+              </div>
+              <ExportPanel />
+            </section>
+          </>
+        )}
+
+        {activeTab === 'tiny' && (
+          <section>
+            <div className="mb-6">
+              <h2 className="text-lg font-bold text-gray-900">Exportação para Tiny ERP</h2>
+              <p className="text-sm text-gray-500">
+                Faça upload do Extrato Analítico gerado pela conciliação e do Plano de Contas para gerar o arquivo no layout do Tiny.
+              </p>
             </div>
-            <div className="flex items-center space-x-3">
-              <button 
-                onClick={handleClearDb}
-                className="flex items-center space-x-2 px-4 py-2 bg-white border border-red-200 text-red-600 hover:bg-red-50 rounded-lg font-medium transition-colors shadow-sm"
-              >
-                <Trash2 className="w-4 h-4" />
-                <span>Limpar Banco</span>
-              </button>
-              <button 
-                onClick={handleReconcile}
-                disabled={isReconciling}
-                className="flex items-center space-x-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium transition-colors shadow-sm disabled:opacity-50"
-              >
-                <RefreshCcw className={`w-4 h-4 ${isReconciling ? 'animate-spin' : ''}`} />
-                <span>{isReconciling ? 'Processando...' : 'Rodar Conciliação'}</span>
-              </button>
-            </div>
-          </div>
-          
-          <DashboardStats />
-        </section>
-
-        {/* Section 3: Data Grid */}
-        <section>
-          <TransactionsTable />
-        </section>
-
-        {/* Section 4: Export */}
-        <section>
-          <div className="mb-4">
-            <h2 className="text-lg font-bold text-gray-900">3. Geração de Relatórios</h2>
-            <p className="text-sm text-gray-500">Exporte os resultados da conciliação.</p>
-          </div>
-          <ExportPanel />
-        </section>
+            <TinyExportPanel />
+          </section>
+        )}
 
       </main>
     </div>
@@ -118,3 +166,4 @@ function App() {
 }
 
 export default App;
+
