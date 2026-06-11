@@ -1,142 +1,120 @@
 import { useState } from 'react';
-import { FileUpload } from './components/FileUpload';
-import { ExtratoPanel } from './components/ExtratoPanel';
-import { AjustadoPanel } from './components/AjustadoPanel';
-import { MovimentoPanel } from './components/MovimentoPanel';
-import { ExportButton } from './components/ExportButton';
-import { LayoutDashboard, FileText, Activity, ClipboardList } from 'lucide-react';
+import { UploadPanel } from './components/UploadPanel';
+import { DashboardStats } from './components/DashboardStats';
+import { TransactionsTable } from './components/TransactionsTable';
+import { ExportPanel } from './components/ExportPanel';
+import { processReconciliation } from './services/exportService';
+import { Activity, RefreshCcw, Trash2 } from 'lucide-react';
+import { db } from './db/database';
 
 function App() {
-  const [activeTab, setActiveTab] = useState<'upload' | 'extrato' | 'movimento' | 'ajustado'>('upload');
-  const [startDate, setStartDate] = useState('');
-  const [endDate, setEndDate] = useState('');
-  const [statusFilter, setStatusFilter] = useState<'all' | 'analitico' | 'pendente'>('all');
+  const [isReconciling, setIsReconciling] = useState(false);
+  const handleUploadSuccess = () => {
+    // We could trigger an auto-reconciliation here if we want
+  };
+
+  const handleReconcile = async () => {
+    setIsReconciling(true);
+    try {
+      // processReconciliation updates the DB status for each row
+      await processReconciliation();
+    } catch (error) {
+      console.error('Erro na conciliação:', error);
+      alert('Erro ao realizar a conciliação dos dados.');
+    } finally {
+      setIsReconciling(false);
+    }
+  };
+
+  const handleClearDb = async () => {
+    if (window.confirm('Tem certeza que deseja apagar todos os dados do banco local? Isso não pode ser desfeito.')) {
+      try {
+        await db.extratos.clear();
+        await db.movimentos.clear();
+      } catch (error) {
+        console.error('Erro ao limpar banco:', error);
+        alert('Erro ao limpar o banco de dados.');
+      }
+    }
+  };
 
   return (
-    <div className="min-h-screen bg-gray-50 flex flex-col">
+    <div className="min-h-screen bg-gray-50 text-gray-900 font-sans">
       {/* Header */}
-      <header className="bg-blue-700 text-white shadow-md">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <LayoutDashboard className="w-8 h-8" />
-            <h1 className="text-2xl font-bold tracking-tight">Conciliação Financeira</h1>
+      <header className="bg-white border-b border-gray-200 sticky top-0 z-10">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="w-8 h-8 bg-primary-600 rounded-lg flex items-center justify-center text-white">
+              <Activity className="w-5 h-5" />
+            </div>
+            <h1 className="text-xl font-bold bg-clip-text text-transparent bg-gradient-to-r from-primary-700 to-primary-500">
+              Conciliação Mercado Pago
+            </h1>
           </div>
-          <ExportButton startDate={startDate} endDate={endDate} statusFilter={statusFilter} />
+          <div className="text-sm text-gray-500 font-medium">
+            Encorda
+          </div>
         </div>
       </header>
 
       {/* Main Content */}
-      <main className="flex-1 max-w-7xl w-full mx-auto px-4 sm:px-6 lg:px-8 py-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8 space-y-8">
         
-        {/* Tabs */}
-        <div className="flex space-x-1 border-b border-gray-200 mb-6">
-          <button
-            onClick={() => setActiveTab('upload')}
-            className={`flex items-center gap-2 px-6 py-3 font-medium text-sm rounded-t-lg transition-colors ${
-              activeTab === 'upload'
-                ? 'bg-white text-blue-700 border-t border-l border-r border-gray-200 -mb-px'
-                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-            }`}
-          >
-            <UploadIcon className="w-4 h-4" />
-            Importação
-          </button>
+        {/* Section 1: Upload */}
+        <section>
+          <div className="mb-4">
+            <h2 className="text-lg font-bold text-gray-900">1. Importação de Dados</h2>
+            <p className="text-sm text-gray-500">Carregue as planilhas oficiais exportadas pelo Mercado Pago.</p>
+          </div>
+          <UploadPanel onUploadSuccess={handleUploadSuccess} />
+        </section>
+
+        {/* Section 2: Dashboard & Actions */}
+        <section>
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-lg font-bold text-gray-900">2. Análise e Conciliação</h2>
+              <p className="text-sm text-gray-500">Visão geral dos dados armazenados no banco local.</p>
+            </div>
+            <div className="flex items-center space-x-3">
+              <button 
+                onClick={handleClearDb}
+                className="flex items-center space-x-2 px-4 py-2 bg-white border border-red-200 text-red-600 hover:bg-red-50 rounded-lg font-medium transition-colors shadow-sm"
+              >
+                <Trash2 className="w-4 h-4" />
+                <span>Limpar Banco</span>
+              </button>
+              <button 
+                onClick={handleReconcile}
+                disabled={isReconciling}
+                className="flex items-center space-x-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium transition-colors shadow-sm disabled:opacity-50"
+              >
+                <RefreshCcw className={`w-4 h-4 ${isReconciling ? 'animate-spin' : ''}`} />
+                <span>{isReconciling ? 'Processando...' : 'Rodar Conciliação'}</span>
+              </button>
+            </div>
+          </div>
           
-          <button
-            onClick={() => setActiveTab('extrato')}
-            className={`flex items-center gap-2 px-6 py-3 font-medium text-sm rounded-t-lg transition-colors ${
-              activeTab === 'extrato'
-                ? 'bg-white text-blue-700 border-t border-l border-r border-gray-200 -mb-px'
-                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-            }`}
-          >
-            <FileText className="w-4 h-4" />
-            Painel de Extrato
-          </button>
+          <DashboardStats />
+        </section>
 
-          <button
-            onClick={() => setActiveTab('movimento')}
-            className={`flex items-center gap-2 px-6 py-3 font-medium text-sm rounded-t-lg transition-colors ${
-              activeTab === 'movimento'
-                ? 'bg-white text-blue-700 border-t border-l border-r border-gray-200 -mb-px'
-                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-            }`}
-          >
-            <Activity className="w-4 h-4" />
-            Painel de Movimento
-          </button>
+        {/* Section 3: Data Grid */}
+        <section>
+          <TransactionsTable />
+        </section>
 
-          <button
-            onClick={() => setActiveTab('ajustado')}
-            className={`flex items-center gap-2 px-6 py-3 font-medium text-sm rounded-t-lg transition-colors ${
-              activeTab === 'ajustado'
-                ? 'bg-white text-blue-700 border-t border-l border-r border-gray-200 -mb-px'
-                : 'text-gray-500 hover:text-gray-700 hover:bg-gray-100'
-            }`}
-          >
-            <ClipboardList className="w-4 h-4" />
-            Painel Ajustado
-          </button>
-        </div>
+        {/* Section 4: Export */}
+        <section>
+          <div className="mb-4">
+            <h2 className="text-lg font-bold text-gray-900">3. Geração de Relatórios</h2>
+            <p className="text-sm text-gray-500">Exporte os resultados da conciliação.</p>
+          </div>
+          <ExportPanel />
+        </section>
 
-        {/* Tab Content */}
-        <div className="mt-4">
-          {activeTab === 'upload' && <FileUpload />}
-          {activeTab === 'extrato' && (
-            <ExtratoPanel 
-              startDate={startDate} 
-              endDate={endDate} 
-              statusFilter={statusFilter}
-              onStartDateChange={setStartDate} 
-              onEndDateChange={setEndDate} 
-              onStatusFilterChange={setStatusFilter}
-            />
-          )}
-          {activeTab === 'ajustado' && (
-            <AjustadoPanel 
-              startDate={startDate} 
-              endDate={endDate} 
-              statusFilter={statusFilter}
-              onStartDateChange={setStartDate} 
-              onEndDateChange={setEndDate} 
-              onStatusFilterChange={setStatusFilter}
-            />
-          )}
-          {activeTab === 'movimento' && <MovimentoPanel />}
-        </div>
-        
       </main>
-      
-      {/* Footer */}
-      <footer className="bg-white border-t border-gray-200 mt-auto">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 text-center text-sm text-gray-500">
-          Sistema de Conciliação Mercado Pago &copy; {new Date().getFullYear()}
-        </div>
-      </footer>
     </div>
   );
-}
-
-// Icon for Upload Tab
-function UploadIcon(props: React.SVGProps<SVGSVGElement>) {
-  return (
-    <svg
-      {...props}
-      xmlns="http://www.w3.org/2000/svg"
-      width="24"
-      height="24"
-      viewBox="0 0 24 24"
-      fill="none"
-      stroke="currentColor"
-      strokeWidth="2"
-      strokeLinecap="round"
-      strokeLinejoin="round"
-    >
-      <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-      <polyline points="17 8 12 3 7 8" />
-      <line x1="12" x2="12" y1="3" y2="15" />
-    </svg>
-  )
 }
 
 export default App;
