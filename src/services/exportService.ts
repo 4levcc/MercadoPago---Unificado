@@ -40,6 +40,23 @@ const DEFAULT_TIPOS_MOVIMENTO = [
 const TOLERANCE = 0.01;
 
 // ─────────────────────────────────────────────────────────────────────────────
+// Helper: format date to DD/MM/YYYY
+// ─────────────────────────────────────────────────────────────────────────────
+function formatDateForExcel(dateStr: string): string {
+    if (!dateStr) return '';
+    const datePart = dateStr.split(/[T ]/)[0];
+    const parts = datePart.split(/[-/]/);
+    if (parts.length === 3) {
+        if (parts[0].length === 4) {
+            return `${parts[2]}/${parts[1]}/${parts[0]}`;
+        } else if (parts[2].length === 4) {
+            return `${parts[0]}/${parts[1]}/${parts[2]}`;
+        }
+    }
+    return dateStr.replace(/-/g, '/');
+}
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Helper: robust date sort (handles YYYY-MM-DD, DD-MM-YYYY, ISO timestamps)
 // ─────────────────────────────────────────────────────────────────────────────
 function getSortableTime(dateStr: string): number {
@@ -403,7 +420,7 @@ export async function exportToXlsx(format: 'pivotado' | 'auditoria' | 'cronologi
 
         for (const row of data.processedList) {
             const arr: any[] = [
-                row.release_date,
+                formatDateForExcel(row.release_date),
                 row.transaction_type,
                 row.reference_id,
                 row.transaction_net_amount,
@@ -432,7 +449,7 @@ export async function exportToXlsx(format: 'pivotado' | 'auditoria' | 'cronologi
         for (const row of data.processedList) {
             // Linha do extrato
             mainSheetData.push([
-                row.release_date,
+                formatDateForExcel(row.release_date),
                 row.transaction_type,
                 row.reference_id,
                 row.transaction_net_amount,
@@ -443,7 +460,7 @@ export async function exportToXlsx(format: 'pivotado' | 'auditoria' | 'cronologi
             if (row.relatedMovs && row.relatedMovs.length > 0) {
                 for (const m of row.relatedMovs) {
                     mainSheetData.push([
-                        m.data_pagamento,
+                        formatDateForExcel(m.data_pagamento),
                         `  ↳ ${m.tipo_operacao}`,
                         m.operacao_relacionada,
                         m.valor,
@@ -480,7 +497,7 @@ export async function exportToXlsx(format: 'pivotado' | 'auditoria' | 'cronologi
             if (row.status_conciliacao === 'Não Conciliado') {
                 // Mantém linha do extrato
                 mainSheetData.push([
-                    row.release_date,
+                    formatDateForExcel(row.release_date),
                     row.transaction_type,
                     row.reference_id,
                     row.transaction_net_amount,
@@ -491,7 +508,7 @@ export async function exportToXlsx(format: 'pivotado' | 'auditoria' | 'cronologi
                 // Conciliado ou Conciliado Divergente: imprime movimentos pareados
                 for (const m of row.relatedMovs) {
                     mainSheetData.push([
-                        row.release_date, // herda data do extrato
+                        formatDateForExcel(row.release_date), // herda data do extrato
                         m.tipo_operacao,
                         m.operacao_relacionada,
                         m.valor,
@@ -502,7 +519,7 @@ export async function exportToXlsx(format: 'pivotado' | 'auditoria' | 'cronologi
                 // Se divergente, adiciona linha de ajuste para manter a soma
                 if (row.status_conciliacao === 'Conciliado Divergente' && row.diferenca !== null) {
                     mainSheetData.push([
-                        row.release_date,
+                        formatDateForExcel(row.release_date),
                         row.diferenca > 0 ? 'Ajuste de Saldo (+)' : 'Ajuste de Saldo (-)',
                         row.reference_id,
                         row.diferenca,
@@ -525,7 +542,7 @@ export async function exportToXlsx(format: 'pivotado' | 'auditoria' | 'cronologi
     const unmappedData = data.processedList
         .filter(r => r.status_conciliacao === 'Não Conciliado')
         .map(r => ({
-            'Data Lançamento': r.release_date,
+            'Data Lançamento': formatDateForExcel(r.release_date),
             'Tipo Extrato': r.transaction_type,
             'Reference ID': r.reference_id,
             'Valor Líquido': r.transaction_net_amount,

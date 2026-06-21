@@ -2,9 +2,33 @@ import React, { useState, useMemo } from 'react';
 import {
   UploadCloud, CheckCircle, AlertCircle, Loader2, FileSpreadsheet,
   ListOrdered, AlertTriangle, Download, ChevronLeft, ChevronRight,
-  ArrowUpDown, ArrowUp, ArrowDown, CheckSquare
+  ArrowUpDown, ArrowUp, ArrowDown, CheckSquare, Trash2, RefreshCcw
 } from 'lucide-react';
 import * as XLSX from 'xlsx';
+
+// ─────────────────────────────────────────────────────────────────────────────
+// Helpers
+// ─────────────────────────────────────────────────────────────────────────────
+function excelDateToJSDate(serial: number): string {
+  const utc_days  = Math.floor(serial - 25569);
+  const utc_value = utc_days * 86400;                                        
+  const date_info = new Date(utc_value * 1000);
+  return date_info.toISOString().split('T')[0];
+}
+
+function formatDateForExcel(dateStr: string): string {
+    if (!dateStr) return '';
+    const datePart = dateStr.split(/[T ]/)[0];
+    const parts = datePart.split(/[-/]/);
+    if (parts.length === 3) {
+        if (parts[0].length === 4) {
+            return `${parts[2]}/${parts[1]}/${parts[0]}`;
+        } else if (parts[2].length === 4) {
+            return `${parts[0]}/${parts[1]}/${parts[2]}`;
+        }
+    }
+    return dateStr.replace(/-/g, '/');
+}
 
 // ─────────────────────────────────────────────────────────────────────────────
 // Types
@@ -143,7 +167,7 @@ const PreviewTable: React.FC<{ rows: ParsedRow[] }> = ({ rows }) => {
       {totalPages > 1 && (
         <div className="px-6 py-3 flex items-center justify-between border-t border-gray-100 bg-gray-50">
           <span className="text-sm text-gray-500">
-            Página {page + 1} de {totalPages} · {rows.length} registros
+            Página {page + 1} de {totalPages} · {rows.length.toLocaleString('pt-BR')} registros
           </span>
           <div className="flex space-x-2">
             <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
@@ -170,9 +194,13 @@ export const TinyExportPanel: React.FC = () => {
   const [extratoStatus, setExtratoStatus] = useState<{ loading: boolean; message: string; type: 'idle' | 'success' | 'error' }>({ loading: false, message: '', type: 'idle' });
   const [planoStatus, setPlanoStatus] = useState<{ loading: boolean; message: string; type: 'idle' | 'success' | 'error' }>({ loading: false, message: '', type: 'idle' });
 
+  const [rawExtratoData, setRawExtratoData] = useState<any[][] | null>(null);
+  const [rawPlanoData, setRawPlanoData] = useState<any[][] | null>(null);
+
   const [parsedRows, setParsedRows] = useState<ParsedRow[]>([]);
   const [planoMap, setPlanoMap] = useState<Record<string, string>>({});
   const [exporting, setExporting] = useState(false);
+  const [isProcessing, setIsProcessing] = useState(false);
 
   const [previewTab, setPreviewTab] = useState<'geral' | 'revisao'>('geral');
 
@@ -187,29 +215,16 @@ export const TinyExportPanel: React.FC = () => {
 
   // ─── Upload: Plano de Contas ──────────────────────────────────────────────
   const handlePlanoUpload = async (file: File) => {
-    setPlanoStatus({ loading: true, message: 'Processando...', type: 'idle' });
+    setPlanoStatus({ loading: true, message: 'Lendo arquivo...', type: 'idle' });
     try {
       const buffer = await readFile(file);
       const wb = XLSX.read(buffer, { type: 'array' });
       const ws = wb.Sheets[wb.SheetNames[0]];
       const data = XLSX.utils.sheet_to_json<any[]>(ws, { header: 1 }) as any[][];
 
-      const map: Record<string, string> = {};
-      for (let i = 1; i < data.length; i++) {
-        const row = data[i];
-        if (row[0] && row[1]) {
-          map[String(row[0]).trim()] = String(row[1]).trim();
-        }
-      }
-
-      setPlanoMap(map);
-      setPlanoStatus({ loading: false, message: `Plano importado. ${Object.keys(map).length} mapeamentos.`, type: 'success' });
-
-      // Re-map existing rows if extrato was uploaded first
-      setParsedRows(prev => prev.map(r => {
-        const cat = map[r.tipoOperacao] ?? '';
-        return { ...r, categoria: cat, hasCategoryMatch: !!cat };
-      }));
+      setRawPlanoData(data);
+      const mapeamentos = data.length > 1 ? data.length - 1 : 0;
+      setPlanoStatus({ loading: false, message: `Plano lido (${mapeamentos.toLocaleString('pt-BR')} mapeamentos). Clique em 'Rodar Conciliação' para processar.`, type: 'success' });
     } catch (err) {
       setPlanoStatus({ loading: false, message: `Erro: ${err instanceof Error ? err.message : 'desconhecido'}`, type: 'error' });
     }
@@ -217,38 +232,87 @@ export const TinyExportPanel: React.FC = () => {
 
   // ─── Upload: Extrato Analítico ────────────────────────────────────────────
   const handleExtratoUpload = async (file: File) => {
-    setExtratoStatus({ loading: true, message: 'Processando...', type: 'idle' });
+    setExtratoStatus({ loading: true, message: 'Lendo arquivo...', type: 'idle' });
     try {
       const buffer = await readFile(file);
       const wb = XLSX.read(buffer, { type: 'array' });
       const ws = wb.Sheets[wb.SheetNames[0]];
       const data = XLSX.utils.sheet_to_json<any[]>(ws, { header: 1 }) as any[][];
 
-      const rows: ParsedRow[] = [];
-      for (let i = 1; i < data.length; i++) {
-        const row = data[i];
-        if (!row || row.length < 5) continue;
-
-        const tipoOperacao = String(row[1] ?? '').trim();
-        const cat = planoMap[tipoOperacao] ?? '';
-
-        rows.push({
-          data: String(row[0] ?? '').trim(),
-          tipoOperacao,
-          operacaoRelacionada: String(row[2] ?? '').trim(),
-          valor: typeof row[3] === 'number' ? row[3] : parseFloat(String(row[3]).replace(',', '.')) || 0,
-          numeroMov: String(row[4] ?? '').trim(),
-          status: String(row[5] ?? '').trim(),
-          categoria: cat,
-          hasCategoryMatch: !!cat,
-        });
-      }
-
-      setParsedRows(rows);
-      setExtratoStatus({ loading: false, message: `Extrato importado. ${rows.length} linhas processadas.`, type: 'success' });
+      setRawExtratoData(data);
+      const linhas = data.length > 1 ? data.length - 1 : 0;
+      setExtratoStatus({ loading: false, message: `Extrato lido (${linhas.toLocaleString('pt-BR')} linhas). Clique em 'Rodar Conciliação' para processar.`, type: 'success' });
     } catch (err) {
       setExtratoStatus({ loading: false, message: `Erro: ${err instanceof Error ? err.message : 'desconhecido'}`, type: 'error' });
     }
+  };
+
+  // ─── Process & Clear ──────────────────────────────────────────────────────
+  const handleProcessData = () => {
+    if (!rawExtratoData && !rawPlanoData) return;
+    setIsProcessing(true);
+    
+    setTimeout(() => {
+      const map: Record<string, string> = { ...planoMap };
+      
+      if (rawPlanoData) {
+        for (let i = 1; i < rawPlanoData.length; i++) {
+          const row = rawPlanoData[i];
+          if (row[0] && row[1]) {
+            map[String(row[0]).trim()] = String(row[1]).trim();
+          }
+        }
+        setPlanoMap(map);
+      }
+
+      if (rawExtratoData) {
+        const rows: ParsedRow[] = [];
+        for (let i = 1; i < rawExtratoData.length; i++) {
+          const row = rawExtratoData[i];
+          if (!row || row.length < 5) continue;
+
+          const tipoOperacao = String(row[1] ?? '').trim();
+          const cat = map[tipoOperacao] ?? '';
+
+          const rawDate = row[0];
+          const dateStr = typeof rawDate === 'number' ? excelDateToJSDate(rawDate) : String(rawDate ?? '').trim();
+
+          rows.push({
+            data: formatDateForExcel(dateStr),
+            tipoOperacao,
+            operacaoRelacionada: String(row[2] ?? '').trim(),
+            valor: typeof row[3] === 'number' ? row[3] : parseFloat(String(row[3]).replace(',', '.')) || 0,
+            numeroMov: String(row[4] ?? '').trim(),
+            status: String(row[5] ?? '').trim(),
+            categoria: cat,
+            hasCategoryMatch: !!cat,
+          });
+        }
+        setParsedRows(rows);
+      } else if (rawPlanoData) {
+        setParsedRows(prev => prev.map(r => {
+          const cat = map[r.tipoOperacao] ?? '';
+          return { ...r, categoria: cat, hasCategoryMatch: !!cat };
+        }));
+      }
+
+      setRawPlanoData(null);
+      setRawExtratoData(null);
+      
+      if (rawPlanoData) setPlanoStatus({ loading: false, message: `Processado com sucesso.`, type: 'success' });
+      if (rawExtratoData) setExtratoStatus({ loading: false, message: `Processado com sucesso.`, type: 'success' });
+
+      setIsProcessing(false);
+    }, 100);
+  };
+
+  const handleClearData = () => {
+    setRawExtratoData(null);
+    setRawPlanoData(null);
+    setParsedRows([]);
+    setPlanoMap({});
+    setExtratoStatus({ loading: false, message: '', type: 'idle' });
+    setPlanoStatus({ loading: false, message: '', type: 'idle' });
   };
 
   // ─── File input handler (supports both click and drag) ─────────────────────
@@ -400,9 +464,28 @@ export const TinyExportPanel: React.FC = () => {
 
       {/* ─── Block 2: Análise da Importação ─────────────────────────────── */}
       <section>
-        <div className="mb-4">
-          <h2 className="text-lg font-bold text-gray-900">2. Análise da Importação</h2>
-          <p className="text-sm text-gray-500">Visão geral dos dados importados e mapeamento com o Plano de Contas.</p>
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <h2 className="text-lg font-bold text-gray-900">2. Análise da Importação</h2>
+            <p className="text-sm text-gray-500">Visão geral dos dados importados e mapeamento com o Plano de Contas.</p>
+          </div>
+          <div className="flex items-center space-x-3">
+            <button 
+              onClick={handleClearData}
+              className="flex items-center space-x-2 px-4 py-2 bg-white border border-red-200 text-red-600 hover:bg-red-50 rounded-lg font-medium transition-colors shadow-sm"
+            >
+              <Trash2 className="w-4 h-4" />
+              <span>Limpar Banco</span>
+            </button>
+            <button 
+              onClick={handleProcessData}
+              disabled={isProcessing || (!rawExtratoData && !rawPlanoData)}
+              className="flex items-center space-x-2 px-4 py-2 bg-primary-600 hover:bg-primary-700 text-white rounded-lg font-medium transition-colors shadow-sm disabled:opacity-50"
+            >
+              <RefreshCcw className={`w-4 h-4 ${isProcessing ? 'animate-spin' : ''}`} />
+              <span>{isProcessing ? 'Processando...' : 'Rodar Conciliação'}</span>
+            </button>
+          </div>
         </div>
 
         {/* Stats Cards */}
@@ -413,7 +496,7 @@ export const TinyExportPanel: React.FC = () => {
             </div>
             <div>
               <p className="text-xs font-medium text-gray-500 leading-tight">Linhas Extrato</p>
-              <h4 className="text-xl font-bold text-gray-900">{stats.total}</h4>
+              <h4 className="text-xl font-bold text-gray-900">{stats.total.toLocaleString('pt-BR')}</h4>
             </div>
           </div>
 
@@ -423,7 +506,7 @@ export const TinyExportPanel: React.FC = () => {
             </div>
             <div>
               <p className="text-xs font-medium text-gray-500 leading-tight">Plano de Contas</p>
-              <h4 className="text-xl font-bold text-gray-900">{stats.planoCount}</h4>
+              <h4 className="text-xl font-bold text-gray-900">{stats.planoCount.toLocaleString('pt-BR')}</h4>
             </div>
           </div>
 
@@ -433,7 +516,7 @@ export const TinyExportPanel: React.FC = () => {
             </div>
             <div>
               <p className="text-xs font-medium text-gray-500 leading-tight">Com Categoria</p>
-              <h4 className="text-xl font-bold text-emerald-700">{stats.mapped}</h4>
+              <h4 className="text-xl font-bold text-emerald-700">{stats.mapped.toLocaleString('pt-BR')}</h4>
             </div>
           </div>
 
@@ -443,7 +526,7 @@ export const TinyExportPanel: React.FC = () => {
             </div>
             <div>
               <p className="text-xs font-medium text-gray-500 leading-tight">Sem Categoria</p>
-              <h4 className="text-xl font-bold text-orange-600">{stats.unmapped}</h4>
+              <h4 className="text-xl font-bold text-orange-600">{stats.unmapped.toLocaleString('pt-BR')}</h4>
             </div>
           </div>
         </div>
@@ -452,7 +535,7 @@ export const TinyExportPanel: React.FC = () => {
         <div className="bg-white rounded-xl shadow-sm border border-gray-100 overflow-hidden">
           <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
             <h3 className="font-semibold text-gray-900">Prévia dos Dados</h3>
-            <span className="text-sm text-gray-500">{parsedRows.length} registros importados</span>
+            <span className="text-sm text-gray-500">{parsedRows.length.toLocaleString('pt-BR')} registros processados</span>
           </div>
 
           {/* Tabs */}
@@ -479,7 +562,7 @@ export const TinyExportPanel: React.FC = () => {
                   {tab.label}
                   {count > 0 && (
                     <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${badgeColor}`}>
-                      {count}
+                      {count.toLocaleString('pt-BR')}
                     </span>
                   )}
                 </button>

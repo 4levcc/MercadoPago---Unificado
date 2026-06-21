@@ -13,8 +13,10 @@ type AppTab = 'conciliacao' | 'tiny';
 function App() {
   const [activeTab, setActiveTab] = useState<AppTab>('conciliacao');
   const [isReconciling, setIsReconciling] = useState(false);
-  const handleUploadSuccess = () => {
-    // We could trigger an auto-reconciliation here if we want
+  const [lastImportCounts, setLastImportCounts] = useState<{extrato?: number, movimento?: number}>({});
+
+  const handleUploadSuccess = (type: 'extrato' | 'movimento', count: number) => {
+    setLastImportCounts(prev => ({ ...prev, [type]: count }));
   };
 
   const handleReconcile = async () => {
@@ -35,6 +37,7 @@ function App() {
       try {
         await db.extratos.clear();
         await db.movimentos.clear();
+        setLastImportCounts({});
       } catch (error) {
         console.error('Erro ao limpar banco:', error);
         alert('Erro ao limpar o banco de dados.');
@@ -129,7 +132,7 @@ function App() {
                 </div>
               </div>
               
-              <DashboardStats />
+              <DashboardStats lastImportCounts={lastImportCounts} />
             </section>
 
             {/* Section 3: Data Grid */}

@@ -143,7 +143,7 @@ const ExtratoTable: React.FC<{ rows: Extrato[] }> = ({ rows }) => {
       {totalPages > 1 && (
         <div className="px-6 py-3 flex items-center justify-between border-t border-gray-100 bg-gray-50">
           <span className="text-sm text-gray-500">
-            Página {page + 1} de {totalPages} · {rows.length} registros
+            Página {page + 1} de {totalPages} · {rows.length.toLocaleString('pt-BR')} registros
           </span>
           <div className="flex space-x-2">
             <button onClick={() => setPage(p => Math.max(0, p - 1))} disabled={page === 0}
@@ -201,7 +201,7 @@ export const TransactionsTable: React.FC = () => {
       {/* Header */}
       <div className="px-6 py-4 border-b border-gray-100 flex items-center justify-between">
         <h3 className="font-semibold text-gray-900">Prévia do Extrato</h3>
-        <span className="text-sm text-gray-500">{geral.length} registros importados</span>
+        <span className="text-sm text-gray-500">{geral.length.toLocaleString('pt-BR')} registros importados</span>
       </div>
 
       {/* Tabs */}
@@ -229,7 +229,7 @@ export const TransactionsTable: React.FC = () => {
               {tab.label}
               {count > 0 && (
                 <span className={`text-xs px-1.5 py-0.5 rounded-full font-semibold ${badgeColor}`}>
-                  {count}
+                  {count.toLocaleString('pt-BR')}
                 </span>
               )}
             </button>

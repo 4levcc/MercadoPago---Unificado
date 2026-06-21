@@ -2,7 +2,7 @@ import React, { useState } from 'react';
 import { UploadCloud, CheckCircle, AlertCircle, Loader2 } from 'lucide-react';
 import { importExtrato, importMovimento } from '../services/importService';
 
-export const UploadPanel: React.FC<{ onUploadSuccess: () => void }> = ({ onUploadSuccess }) => {
+export const UploadPanel: React.FC<{ onUploadSuccess: (type: 'extrato' | 'movimento', count: number) => void }> = ({ onUploadSuccess }) => {
   const [extratoStatus, setExtratoStatus] = useState<{ loading: boolean; message: string; type: 'idle' | 'success' | 'error' }>({ loading: false, message: '', type: 'idle' });
   const [movimentoStatus, setMovimentoStatus] = useState<{ loading: boolean; message: string; type: 'idle' | 'success' | 'error' }>({ loading: false, message: '', type: 'idle' });
 
@@ -17,7 +17,7 @@ export const UploadPanel: React.FC<{ onUploadSuccess: () => void }> = ({ onUploa
       message: result.message,
       type: result.success ? 'success' : 'error'
     });
-    if (result.success) onUploadSuccess();
+    if (result.success) onUploadSuccess('extrato', result.rowsProcessed);
   };
 
   const handleMovimentoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -31,7 +31,7 @@ export const UploadPanel: React.FC<{ onUploadSuccess: () => void }> = ({ onUploa
       message: result.message,
       type: result.success ? 'success' : 'error'
     });
-    if (result.success) onUploadSuccess();
+    if (result.success) onUploadSuccess('movimento', result.rowsProcessed);
   };
 
   return (

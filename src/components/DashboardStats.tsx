@@ -3,7 +3,7 @@ import { useLiveQuery } from 'dexie-react-hooks';
 import { db } from '../db/database';
 import { FileSpreadsheet, ListOrdered, CheckSquare, AlertTriangle, XCircle } from 'lucide-react';
 
-export const DashboardStats: React.FC = () => {
+export const DashboardStats: React.FC<{ lastImportCounts?: { extrato?: number, movimento?: number } }> = ({ lastImportCounts }) => {
   const stats = useLiveQuery(async () => {
     const totalExtratos = await db.extratos.count();
     const totalMovimentos = await db.movimentos.count();
@@ -25,7 +25,14 @@ export const DashboardStats: React.FC = () => {
         </div>
         <div>
           <p className="text-xs font-medium text-gray-500 leading-tight">Linhas Extrato CB</p>
-          <h4 className="text-xl font-bold text-gray-900">{stats.totalExtratos}</h4>
+          <h4 className="text-xl font-bold text-gray-900">
+            {stats.totalExtratos.toLocaleString('pt-BR')}
+          </h4>
+          {lastImportCounts?.extrato && (
+            <p className="text-[10px] text-gray-400 mt-0.5">
+              Último upload: {lastImportCounts.extrato.toLocaleString('pt-BR')}
+            </p>
+          )}
         </div>
       </div>
 
@@ -36,7 +43,14 @@ export const DashboardStats: React.FC = () => {
         </div>
         <div>
           <p className="text-xs font-medium text-gray-500 leading-tight">Linhas Movimento</p>
-          <h4 className="text-xl font-bold text-gray-900">{stats.totalMovimentos}</h4>
+          <h4 className="text-xl font-bold text-gray-900">
+            {stats.totalMovimentos.toLocaleString('pt-BR')}
+          </h4>
+          {lastImportCounts?.movimento && (
+            <p className="text-[10px] text-gray-400 mt-0.5">
+              Último upload: {lastImportCounts.movimento.toLocaleString('pt-BR')}
+            </p>
+          )}
         </div>
       </div>
 
@@ -47,7 +61,7 @@ export const DashboardStats: React.FC = () => {
         </div>
         <div>
           <p className="text-xs font-medium text-gray-500 leading-tight">Conciliados</p>
-          <h4 className="text-xl font-bold text-emerald-700">{stats.totalConciliados}</h4>
+          <h4 className="text-xl font-bold text-emerald-700">{stats.totalConciliados.toLocaleString('pt-BR')}</h4>
         </div>
       </div>
 
@@ -58,7 +72,7 @@ export const DashboardStats: React.FC = () => {
         </div>
         <div>
           <p className="text-xs font-medium text-gray-500 leading-tight">Divergentes</p>
-          <h4 className="text-xl font-bold text-orange-600">{stats.totalDivergentes}</h4>
+          <h4 className="text-xl font-bold text-orange-600">{stats.totalDivergentes.toLocaleString('pt-BR')}</h4>
         </div>
       </div>
 
@@ -69,7 +83,7 @@ export const DashboardStats: React.FC = () => {
         </div>
         <div>
           <p className="text-xs font-medium text-gray-500 leading-tight">Não Conciliados</p>
-          <h4 className="text-xl font-bold text-red-600">{stats.totalNaoConciliados}</h4>
+          <h4 className="text-xl font-bold text-red-600">{stats.totalNaoConciliados.toLocaleString('pt-BR')}</h4>
         </div>
       </div>
     </div>

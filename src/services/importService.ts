@@ -91,7 +91,7 @@ export async function importExtrato(file: File): Promise<{ success: boolean; row
           await db.extratos.bulkPut(extratos);
         }
 
-        resolve({ success: true, rowsProcessed: extratos.length, message: `Extrato importado com sucesso. ${extratos.length} linhas processadas.` });
+        resolve({ success: true, rowsProcessed: extratos.length, message: `Extrato importado com sucesso. ${extratos.length.toLocaleString('pt-BR')} linhas processadas.` });
       } catch (error: any) {
         resolve({ success: false, rowsProcessed: 0, message: `Erro ao importar extrato: ${error.message}` });
       }
@@ -149,7 +149,7 @@ export async function importMovimento(file: File): Promise<{ success: boolean; r
           await db.movimentos.bulkPut(movimentos);
         }
 
-        resolve({ success: true, rowsProcessed: movimentos.length, message: `Movimento importado com sucesso. ${movimentos.length} linhas processadas.` });
+        resolve({ success: true, rowsProcessed: movimentos.length, message: `Movimento importado com sucesso. ${movimentos.length.toLocaleString('pt-BR')} linhas processadas.` });
       } catch (error: any) {
         resolve({ success: false, rowsProcessed: 0, message: `Erro ao importar movimento: ${error.message}` });
       }
